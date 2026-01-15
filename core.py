@@ -171,6 +171,15 @@ INSTITUTION_KEYWORDS = {
 
 LATEX_ACCENT_RE = re.compile(r"\\[`'^\"~=.uvHtcdbkr]{\s*([A-Za-z])\s*}")
 LATEX_ACCENT_SIMPLE_RE = re.compile(r"\\[`'^\"~=.uvHtcdbkr]([A-Za-z])")
+LATEX_ACCENT_BRACED_RE = re.compile(
+    r"\{\\([`'^\"~=.uvHtcdbkr])\s*(\\[ij]|[A-Za-z])\s*\}"
+)
+LATEX_ACCENT_CMD_RE = re.compile(
+    r"\\([`'^\"~=.uvHtcdbkr])\s*\{\s*(\\[ij]|[A-Za-z])\s*\}"
+)
+LATEX_ACCENT_CMD_SIMPLE_RE = re.compile(
+    r"\\([`'^\"~=.uvHtcdbkr])(\\[ij]|[A-Za-z])"
+)
 LATEX_LIGATURES = {
     r"\ss": "ss",
     r"\ae": "ae",
@@ -202,6 +211,23 @@ LATEX_COMBINING_MARKS = {
     "\u0328": r"\k",
     "\u0331": r"\b",
 }
+LATEX_ACCENT_TO_COMBINING = {
+    "`": "\u0300",
+    "'": "\u0301",
+    "^": "\u0302",
+    "~": "\u0303",
+    "=": "\u0304",
+    "u": "\u0306",
+    ".": "\u0307",
+    "\"": "\u0308",
+    "r": "\u030a",
+    "H": "\u030b",
+    "v": "\u030c",
+    "c": "\u0327",
+    "k": "\u0328",
+    "b": "\u0331",
+    "d": "\u0323",
+}
 LATEX_SPECIAL_CHARS = {
     "\u00df": r"\ss",
     "\u00e6": r"\ae",
@@ -217,6 +243,8 @@ LATEX_SPECIAL_CHARS = {
     "\u0131": r"\i",
     "\u0237": r"\j",
 }
+LATEX_COMMAND_TO_UNICODE = {value: key for key, value in LATEX_SPECIAL_CHARS.items()}
+LATEX_COMMAND_BRACED_RE = re.compile(r"\{\\([A-Za-z]+)\}")
 LATEX_SKIP_FIELDS = {
     "url",
     "doi",
@@ -307,9 +335,42 @@ def strip_latex(text: str) -> str:
     for latex, repl in LATEX_LIGATURES.items():
         text = text.replace(latex, repl)
     text = text.replace(r"\&", "and")
+    text = LATEX_ACCENT_BRACED_RE.sub(r"\2", text)
+    text = LATEX_ACCENT_CMD_RE.sub(r"\2", text)
     text = LATEX_ACCENT_RE.sub(r"\1", text)
     text = LATEX_ACCENT_SIMPLE_RE.sub(r"\1", text)
+    text = LATEX_ACCENT_CMD_SIMPLE_RE.sub(r"\2", text)
     return text
+
+
+def latex_to_unicode(text: str) -> str:
+    if not text or "\\" not in text:
+        return text
+
+    def replace_command_braced(match: re.Match) -> str:
+        cmd = f"\\{match.group(1)}"
+        return LATEX_COMMAND_TO_UNICODE.get(cmd, match.group(0))
+
+    def replace_accent(match: re.Match, source: str) -> str:
+        cmd = match.group(1)
+        token = match.group(2)
+        letter = token[1:] if token in {r"\i", r"\j"} else token
+        mark = LATEX_ACCENT_TO_COMBINING.get(cmd)
+        if not mark:
+            return match.group(0)
+        idx = match.start()
+        prev = source[idx - 1] if idx > 0 else ""
+        if prev and prev.isalnum():
+            letter = letter.lower()
+        return unicodedata.normalize("NFC", letter + mark)
+
+    text = LATEX_ACCENT_BRACED_RE.sub(lambda m: replace_accent(m, text), text)
+    text = LATEX_ACCENT_CMD_RE.sub(lambda m: replace_accent(m, text), text)
+    text = LATEX_ACCENT_CMD_SIMPLE_RE.sub(lambda m: replace_accent(m, text), text)
+    text = LATEX_COMMAND_BRACED_RE.sub(replace_command_braced, text)
+    for cmd, uni in LATEX_COMMAND_TO_UNICODE.items():
+        text = text.replace(cmd, uni)
+    return unicodedata.normalize("NFC", text)
 
 
 def strip_diacritics(text: str) -> str:
@@ -347,6 +408,8 @@ def normalize_name_token(token: str) -> str:
 
 
 def normalize_name_text(text: str) -> str:
+    text = latex_to_unicode(text)
+    text = text.replace("{", "").replace("}", "").replace("\\", "")
     parts = re.split(r"(\s+)", text.strip())
     normalized_parts: List[str] = []
     for part in parts:
@@ -369,12 +432,10 @@ def format_person_name(name: str) -> str:
     if not name:
         return ""
     if has_balanced_outer_braces(name):
-        if name.startswith("{{") and name.endswith("}}"):
-            return name
         inner = strip_outer_braces_quotes(name)
         if is_institution_name(inner):
             return f"{{{{{inner}}}}}"
-        return name
+        name = inner
     if is_institution_name(name):
         return f"{{{{{name}}}}}"
     if "," in name:
@@ -1713,4 +1774,3 @@ def write_conflicts_bib(
         content += "\n"
     with open(path, "w", encoding="utf-8") as handle:
         handle.write(content)
-
