@@ -7,8 +7,10 @@ It merges duplicate BibTeX entries, re-keys them to `NameYearKeyword`, and
 preserves old keys in an `ids = {...}` field so older citations still work.
 It can also export conflicts for manual review and apply corrections from a
 separate BibTeX file.
+The exported `*_conflicts.bib` can be reviewed entry-by-entry or provided to an
+AI assistant for faster conflict resolution.
 
-![BibTeX merge example](bibtex_merger_example.pdf)
+![BibTeX merge example](bibtex_merger_example.png)
 
 ## Requirements
 
