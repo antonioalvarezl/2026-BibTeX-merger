@@ -1,4 +1,4 @@
-# BibTeX merger
+# BibTeX Merger
 
 This tool is for cases where you have multiple `.bib` files and want to merge
 them into a single, reliable bibliography without losing citation keys (for
@@ -15,6 +15,20 @@ AI assistant for faster conflict resolution.
 ## Requirements
 
 - Python 3.8+
+- `bibtexparser` (`pip install bibtexparser`)
+
+## Repository Structure
+
+- `bibtex_merger.py`: main entry point (uses `bibtexparser` for parsing).
+- `core.py`: core merge logic and fallback parsing utilities (imported by the main script).
+- `make_example_figure.py`: generates the example figure used in this README.
+- `bibtex_merger_example.png`: example figure shown above.
+- `bibtex_merger_example.pdf`: optional PDF export of the same figure (not required).
+- `example.pdf`: legacy example artifact (optional/unused).
+- `input.bib`: your input bibliography (user data).
+- `output.bib`: generated merged bibliography.
+- `input_conflicts.bib` and `input_conflicts.txt`: generated conflict outputs.
+- `__pycache__/`: Python bytecode cache (can be ignored).
 
 ## Quick Start (Interactive)
 
@@ -22,6 +36,10 @@ Run the script without arguments and it will prompt for the input file.
 You can omit the `.bib` extension; it will be added automatically.
 If the file does not exist, it will ask again.
 Place `input.bib` in the same folder as the script.
+
+This version uses `bibtexparser` for robust parsing. If `bibtexparser` cannot
+parse a malformed entry, the tool falls back to a lightweight parser for that
+entry only.
 
 ```
 python3 bibtex_merger.py
@@ -76,6 +94,10 @@ Rules:
 ## Notes
 
 - No internet lookup is performed.
+- This is a custom workflow tailored to preserving legacy keys, producing a
+  conflict-review file, and enforcing biblatex-style normalization. There are
+  existing tools (e.g., Zotero, JabRef, bibtex-tidy, bibtexparser/pybtex) that
+  handle parts of this, but they do not replicate this exact pipeline.
 - Entries are merged when one is a strict subset of the other or they are
   very likely the same (high title similarity, same year, compatible authors).
 - Output is normalized for biblatex:
