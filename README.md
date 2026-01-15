@@ -1,4 +1,4 @@
-# BibTeX Merger
+# BibTeX merger
 
 This tool is for cases where you have multiple `.bib` files and want to merge
 them into a single, reliable bibliography without losing citation keys (for
